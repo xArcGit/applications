@@ -1,0 +1,148 @@
+#!/bin/bash
+
+current_url_file="/tmp/current_youtube_url"
+playlist_file="$HOME/Music/.youtube_music_playlist"
+music_download_dir="$HOME/Music"
+search_cache="$HOME/Music/.youtube_music_search_cache"
+mpv_socket="/tmp/mpv_socket"
+
+[ ! -d "$music_download_dir" ] && mkdir -p "$music_download_dir"
+[ ! -f "$playlist_file" ] && touch "$playlist_file"
+touch "$search_cache"
+
+rofi_menu() {
+    local prompt="$1"
+    shift
+    echo -e "$@" | rofi -dmenu -p "$prompt"
+}
+
+notify() {
+    notify-send "$1" "$2"
+}
+
+search_youtube() {
+    local query="$1"
+    if grep -q "$query" "$search_cache"; then
+        grep "$query" "$search_cache" | cut -d'|' -f2-
+    else
+        yt-dlp --get-title --get-id --get-url "ytsearch3:$query" | sed 'N;s/\n/ /' | awk '{print $0 " https://youtube.com/watch?v="$NF}' | tee -a "$search_cache"
+    fi
+}
+
+start_mpv_if_needed() {
+    if ! pgrep -x "mpv" > /dev/null; then
+        echo "Starting mpv..."
+        mpv --no-video --input-ipc-server=$mpv_socket "$(cat "$current_url_file")" > /dev/null 2>&1 &
+        sleep 1  # Give mpv time to start
+    fi
+}
+
+play_song() {
+    local url="$1"
+    echo "$url" > "$current_url_file"
+    start_mpv_if_needed
+    echo '{ "command": ["loadfile", "'"$url"'"] }' | socat - $mpv_socket
+    notify "Playing song" "$url"
+}
+
+control_playback() {
+    start_mpv_if_needed
+    local options="Play\nPause\nStop\nNext\nPrevious"
+    local selected=$(rofi_menu "Control Player:" "$options")
+
+    case "$selected" in
+        Play) echo '{ "command": ["set_property", "pause", false] }' | socat - $mpv_socket ;;
+        Pause) echo '{ "command": ["set_property", "pause", true] }' | socat - $mpv_socket ;;
+        Stop) pkill mpv ;;
+        Next) next_song ;;
+        Previous) previous_song ;;
+    esac
+}
+
+add_to_playlist() {
+    local query=$(rofi -dmenu -p "Search YouTube Music to Add to Playlist:")
+    if [[ -n "$query" ]]; then
+        local urls=$(search_youtube "$query")
+        local selected=$(rofi_menu "Select a song to add to playlist:" "$urls")
+        [[ -n "$selected" ]] && echo "$(echo "$selected" | awk '{print $NF}')" >> "$playlist_file" && notify "Song added to playlist" "$selected"
+    else
+        notify "No query entered" ""
+    fi
+}
+
+current_playlist_index=-1
+
+get_playlist() {
+    mapfile -t playlist < "$playlist_file"
+    echo "${playlist[@]}"
+}
+
+next_song() {
+    get_playlist
+    (( current_playlist_index++ ))
+    if (( current_playlist_index >= ${#playlist[@]} )); then
+        current_playlist_index=0
+    fi
+    play_song "${playlist[$current_playlist_index]}"
+}
+
+previous_song() {
+    get_playlist
+    (( current_playlist_index-- ))
+    if (( current_playlist_index < 0 )); then
+        current_playlist_index=$(( ${#playlist[@]} - 1 ))
+    fi
+    play_song "${playlist[$current_playlist_index]}"
+}
+
+play_from_playlist() {
+    get_playlist
+    if [[ ${#playlist[@]} -gt 0 ]]; then
+        local selected=$(rofi_menu "Select a song from playlist:" "$(cat "$playlist_file")")
+        current_playlist_index=$(grep -n "$selected" "$playlist_file" | cut -d: -f1)
+        current_playlist_index=$((current_playlist_index - 1))  # Adjust for 0-based indexing
+        [[ -n "$selected" ]] && play_song "$selected"
+    else
+        notify "Playlist is empty" ""
+    fi
+}
+
+download_youtube_song() {
+    local query=$(rofi -dmenu -p "Search YouTube Music to Download:")
+    if [[ -n "$query" ]]; then
+        local urls=$(search_youtube "$query")
+        local selected=$(rofi_menu "Select a song to download:" "$urls")
+        if [[ -n "$selected" ]]; then
+            local url=$(echo "$selected" | awk '{print $NF}')
+            notify "Downloading song..." ""
+            yt-dlp -x --audio-format mp3 -o "$music_download_dir/%(title)s.%(ext)s" "$url"
+            notify "Download complete" "Saved to $music_download_dir"
+        fi
+    else
+        notify "No query entered" ""
+    fi
+}
+
+main_menu() {
+    local options="Search and Play\nDownload Music\nControl Playback\nAdd to Playlist\nPlay from Playlist"
+    local selected=$(rofi_menu "YouTube Music Player:" "$options")
+
+    case "$selected" in
+        "Search and Play")
+            local query=$(rofi -dmenu -p "Search YouTube Music:")
+            if [[ -n "$query" ]]; then
+                local urls=$(search_youtube "$query")
+                local song=$(rofi_menu "Select a song:" "$urls")
+                [[ -n "$song" ]] && play_song "$(echo "$song" | awk '{print $NF}')"
+            else
+                notify "No query entered" ""
+            fi
+            ;;
+        "Download Music") download_youtube_song ;;
+        "Control Playback") control_playback ;;
+        "Add to Playlist") add_to_playlist ;;
+        "Play from Playlist") play_from_playlist ;;
+    esac
+}
+
+main_menu
