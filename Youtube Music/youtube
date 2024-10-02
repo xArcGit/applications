@@ -1,0 +1,147 @@
+#!/bin/bash
+
+current_url_file="/tmp/youtube_url"
+music_download_dir="$HOME/Music"
+search_cache="$HOME/Music/.youtube_music_search_cache"
+mpv_pid_file="/tmp/mpv_pid"
+db_file="$HOME/Music/.playlist.db"
+
+init_db() {
+    [[ ! -f "$db_file" ]] && sqlite3 "$db_file" <<EOF
+CREATE TABLE playlist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    liked INTEGER DEFAULT 0
+);
+EOF
+}
+
+rofi_menu() {
+    echo -e "$2" | rofi -dmenu -p "$1"
+}
+
+search_youtube() {
+    [[ "$1" =~ ^https?:// ]] && echo "$1" && return
+    grep -q "$1" "$search_cache" && grep "$1" "$search_cache" | cut -d'|' -f2- || \
+    yt-dlp --get-title --get-id --get-url "ytsearch3:$1" | awk '{print $0 " https://youtube.com/watch?v="$NF}' | tee -a "$search_cache"
+}
+
+start_mpv_if_needed() {
+    [[ -f "$mpv_pid_file" ]] && kill -0 "$(cat "$mpv_pid_file")" 2>/dev/null && return
+    nohup mpv --no-terminal --no-video & echo $! > "$mpv_pid_file"
+    sleep 2
+}
+
+is_music_playing() {
+    [[ -f "$mpv_pid_file" ]] && kill -0 "$(cat "$mpv_pid_file")" 2>/dev/null
+}
+
+play_song() {
+    start_mpv_if_needed
+    echo "$1" > "$current_url_file"
+    mpv --no-terminal "$1" &
+    echo $! > "$mpv_pid_file"
+    notify-send "Playing" "Now playing: $(basename "$1")"
+}
+
+add_to_playlist() {
+    query=$(rofi -dmenu -p "Search YouTube Music to Add:")
+    [[ -n "$query" ]] && urls=$(search_youtube "$query") && \
+    selected=$(rofi_menu "Select a song to add:" "$urls") && \
+    name=$(echo "$selected" | awk -F'|' '{print $1}') && \
+    url=$(echo "$selected" | awk '{print $NF}') && \
+    sqlite3 "$db_file" "INSERT INTO playlist (name, url) VALUES ('$name', '$url')" && \
+    notify-send "Playlist" "Added to playlist: $name"
+}
+
+get_playlist_names() {
+    sqlite3 "$db_file" "SELECT name FROM playlist;"
+}
+
+get_song_url_by_name() {
+    sqlite3 "$db_file" "SELECT url FROM playlist WHERE name='$1';"
+}
+
+play_from_playlist() {
+    playlist=$(get_playlist_names)
+    [[ -n "$playlist" ]] && selected=$(rofi_menu "Select a song from playlist:" "$playlist") && \
+    url=$(get_song_url_by_name "$selected") && [[ -n "$url" ]] && play_song "$url" || \
+    notify-send "Error" "Song not found in playlist."
+}
+
+control_playback() {
+    [[ ! is_music_playing ]] && notify-send "Playback" "No music is currently playing." && return
+    selected=$(rofi_menu "Control Player:" "Play\nPause\nStop\nNext\nPrevious")
+    case "$selected" in
+        Play) mpv --input-ipc-server=/tmp/mpv-socket command "set pause no" ;;
+        Pause) mpv --input-ipc-server=/tmp/mpv-socket command "set pause yes" ;;
+        Stop) kill "$(cat "$mpv_pid_file")" && rm -f "$mpv_pid_file" ;;
+        Next) mpv --input-ipc-server=/tmp/mpv-socket command "playlist-next" ;;
+        Previous) mpv --input-ipc-server=/tmp/mpv-socket command "playlist-prev" ;;
+    esac
+    notify-send "Playback" "$selected"
+}
+
+download_youtube_song() {
+    query=$(rofi -dmenu -p "Search YouTube Music to Download:")
+    [[ -n "$query" ]] && urls=$(search_youtube "$query") && \
+    selected=$(rofi_menu "Select a song to download:" "$urls") && \
+    url=$(echo "$selected" | awk '{print $NF}') && \
+    notify-send "Downloading..." "Downloading $(basename "$url")..." && \
+    yt-dlp -x --audio-format mp3 -o "$music_download_dir/%(title)s.%(ext)s" "$url" && \
+    notify-send "Download Complete" "Downloaded $(basename "$url")"
+}
+
+play_downloaded_music() {
+    mapfile -t music_files < <(find "$music_download_dir" -type f \( -name "*.mp3" -o -name "*.m4a" -o -name "*.opus" \))
+    [[ ${#music_files[@]} -gt 0 ]] && \
+    selected=$(rofi_menu "Select a song to play:" "$(printf "%s\n" "${music_files[@]##*/}")") && \
+    play_song "$(find "$music_download_dir" -type f -name "$selected")"
+}
+
+delete_downloaded_music() {
+    mapfile -t music_files < <(find "$music_download_dir" -type f \( -name "*.mp3" -o -name "*.m4a" -o -name "*.opus" \))
+    [[ ${#music_files[@]} -gt 0 ]] && \
+    selected=$(rofi_menu "Select a song to delete:" "$(printf "%s\n" "${music_files[@]##*/}")") && \
+    rm -f "$(find "$music_download_dir" -type f -name "$selected")" && \
+    notify-send "Deleted" "Deleted: $selected"
+}
+
+main_menu() {
+    selected=$(rofi_menu "YouTube Music Player:" "Search and Play\nManage Downloads Music\nControl Playback\nManage Playlist\nQuit")
+    case "$selected" in
+        "Search and Play")
+            query=$(rofi -dmenu -p "Search YouTube Music:")
+            [[ -n "$query" ]] && urls=$(search_youtube "$query") && \
+            song=$(rofi_menu "Select a song:" "$urls") && \
+            play_song "$(echo "$song" | awk '{print $NF}')"
+            ;;
+        "Manage Downloads Music")
+            download_selected=$(rofi_menu "Manage Music Downloads:" "Download Music\nPlay Music\nDelete Music")
+            case "$download_selected" in
+                "Download Music") download_youtube_song ;;
+                "Play Music") play_downloaded_music ;;
+                "Delete Music") delete_downloaded_music ;;
+            esac
+            ;;
+        "Control Playback") control_playback ;;
+        "Manage Playlist")
+            playlist_selected=$(rofi_menu "Manage Playlist:" "Add to Playlist\nPlay from Playlist\nDelete from Playlist")
+            case "$playlist_selected" in
+                "Add to Playlist") add_to_playlist ;;
+                "Play from Playlist") play_from_playlist ;;
+                "Delete from Playlist")
+                    delete_selected=$(rofi_menu "Select a song to delete from playlist:" "$(get_playlist_names)")
+                    [[ -n "$delete_selected" ]] && \
+                    sqlite3 "$db_file" "DELETE FROM playlist WHERE name='$delete_selected';" && \
+                    notify-send "Playlist" "Deleted from playlist: $delete_selected"
+                    ;;
+            esac
+            ;;
+        "Quit") exit 0 ;;
+    esac
+}
+
+init_db
+main_menu
