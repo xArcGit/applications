@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+
+import libtorrent as lt
+import time
+import sys
+import os
+import logging
+from threading import Thread
+from multiprocessing import Process, Queue
+
+# Define color codes for terminal output
+class Color:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+# Set up logging with color
+logging.basicConfig(level=logging.INFO,
+                    format=f'{Color.OKGREEN}%(levelname)s: %(message)s{Color.ENDC}')
+
+def download_torrent(torrent_file: str, download_dir: str, status_queue: Queue) -> None:
+    """Download a torrent file and report progress to the queue."""
+    download_dir = os.path.expanduser(download_dir)
+
+    try:
+        # Create the libtorrent session
+        session = lt.session()
+
+        # Load the torrent file
+        torrent_info = lt.torrent_info(torrent_file)
+        torrent_handle = session.add_torrent({
+            'ti': torrent_info,
+            'save_path': download_dir
+        })
+
+        logging.info(f'{Color.OKCYAN}Starting download: {torrent_handle.status().name}{Color.ENDC}')
+
+        # Download loop
+        while True:
+            try:
+                status = torrent_handle.status()
+                progress = status.progress * 100
+                if progress >= 100.0:
+                    break
+                status_message = (f'{progress:.2f}% complete '
+                                  f'(down: {status.download_rate / 1000:.2f} kB/s, '
+                                  f'up: {status.upload_rate / 1000:.2f} kB/s, '
+                                  f'peers: {status.num_peers})')
+                status_queue.put(status_message)
+                time.sleep(1)
+            except KeyboardInterrupt:
+                logging.info(f'{Color.WARNING}Download interrupted by user.{Color.ENDC}')
+                break
+
+        status_queue.put(f'{Color.OKGREEN}Download complete: {torrent_handle.status().name}{Color.ENDC}')
+
+    except Exception as e:
+        status_queue.put(f'{Color.FAIL}Error occurred: {e}{Color.ENDC}')
+
+def monitor_progress(status_queue: Queue) -> None:
+    """Monitor progress messages from the queue and log them."""
+    while True:
+        message = status_queue.get()
+        if message == 'DONE':
+            break
+        logging.info(message)
+
+def process_torrent(torrent_file: str, download_dir: str) -> None:
+    """Manage the torrent download process with multiprocessing and threading."""
+    status_queue = Queue()
+
+    # Start the progress monitoring thread
+    progress_thread = Thread(target=monitor_progress, args=(status_queue,))
+    progress_thread.start()
+
+    # Start the torrent downloading process
+    download_process = Process(target=download_torrent, args=(torrent_file, download_dir, status_queue))
+    download_process.start()
+
+    try:
+        download_process.join()
+    except KeyboardInterrupt:
+        logging.info(f'{Color.WARNING}Process interrupted by user. Terminating...{Color.ENDC}')
+        download_process.terminate()
+        download_process.join()
+
+    # Notify the monitoring thread to stop
+    status_queue.put('DONE')
+    progress_thread.join()
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        logging.error(f'{Color.FAIL}Usage: python {sys.argv[0]} path_to_torrent_file [--download_dir path/to_download_directory]{Color.ENDC}')
+        sys.exit(1)
+
+    torrent_file_path = sys.argv[1]
+    download_directory = '~/Downloads'
+
+    if '--download_dir' in sys.argv:
+        download_dir_index = sys.argv.index('--download_dir') + 1
+        if download_dir_index < len(sys.argv):
+            download_directory = sys.argv[download_dir_index]
+        else:
+            logging.error(f'{Color.FAIL}Error: No directory specified after --download_dir{Color.ENDC}')
+            sys.exit(1)
+
+    process_torrent(torrent_file_path, download_directory)

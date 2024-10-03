@@ -5,15 +5,15 @@
   <img src="https://img.shields.io/github/license/xArcGit/bash-scripts" alt="License">
 </p>
 
-Welcome to the **Bash Scripts Repository**! This repository is dedicated to collecting various Bash scripts that automate tasks, simplify workflows, and serve as a learning resource for Bash scripting enthusiasts.
+Welcome to the **Scripts Repository**! This repository is dedicated to collecting various scripts that automate tasks, simplify workflows, and serve as a learning resource for scripting enthusiasts.
 
 ---
 
 ## 🚀 Overview
 
-This repository currently contains a single Bash script, but it is designed to grow! Each script focuses on performing specific tasks efficiently. As we expand, more scripts will be added to help you automate tasks on Unix-based systems.
+This repository currently contains a single script, but it is designed to grow! Each script focuses on performing specific tasks efficiently. As we expand, more scripts will be added to help you automate tasks on Unix-based systems.
 
-Bash scripting is a powerful tool that can automate mundane tasks and significantly boost productivity, especially for developers and system administrators.
+scripting is a powerful tool that can automate mundane tasks and significantly boost productivity, especially for developers and system administrators.
 
 ## 💻 Getting Started
 
@@ -22,7 +22,7 @@ Follow these steps to start using the Bash scripts from this repository:
 1. **Clone the repository to your local machine:**
 
 ```bash
-git clone https://github.com/xArcGit/bash-scripts.git
+git clone https://github.com/xArcGit/scripts.git
 ```
 
 2. **Navigate to the directory of the script you want to use:**
@@ -62,9 +62,9 @@ chmod +x script-name
 
 We warmly welcome contributions! If you have any ideas for new scripts, improvements, or bug fixes, feel free to:
 
-1. **Fork this repository**  
-2. **Create a new branch**  
-3. **Submit a pull request**  
+1. **Fork this repository**
+2. **Create a new branch**
+3. **Submit a pull request**
 
 Please make sure to follow the [Contribution Guidelines](CONTRIBUTING.md) if available.
 

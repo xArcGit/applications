@@ -21,7 +21,7 @@ This is a Bash script that allows you to search, play, download, and manage YouT
 Install the required dependencies on your system using your package manager. For example, on Ubuntu/Debian:
 
 ```bash
-sudo apt install rofi mpv yt-dlp sqlite3 libnotify-bin
+rofi mpv yt-dlp sqlite3 libnotify-bin
 ```
 
 ## Script Overview
@@ -64,13 +64,13 @@ When you run the script, you are presented with the following options:
 
 ### Example Usage
 
-1. To run the script, save it as `youtube_music_player.sh` and make it executable:
+1. To run the script, save it as `file_name` and make it executable:
    ```bash
-   chmod +x youtube_music_player.sh
+   chmod +x file_name
    ```
 2. Execute the script:
    ```bash
-   ./youtube_music_player.sh
+   ./file_name
    ```
 
 ## Additional Information

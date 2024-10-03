@@ -1,0 +1,438 @@
+#!/usr/bin/env python3
+
+import os
+import shutil
+import logging
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from typing import Dict, List, Set
+from datetime import datetime
+from multiprocessing import cpu_count
+from threading import Lock
+from dataclasses import dataclass
+
+# Directories
+source_dir = os.path.expanduser("~/downloads")
+destination_dirs: Dict[str, str] = {
+    "document": os.path.expanduser("~/document"),
+    "picture": os.path.expanduser("~/picture"),
+    "pdf": os.path.expanduser("~/pdf"),
+    "text": os.path.expanduser("~/text"),
+    "music": os.path.expanduser("~/music"),
+    "video": os.path.expanduser("~/video"),
+    "edit": os.path.expanduser("~/edit"),
+    "archive": os.path.expanduser("~/archive"),
+    "code": os.path.expanduser("~/code"),
+    "hidden": os.path.expanduser("~/hidden"),
+    "other": os.path.expanduser("~/other"),
+    "torrent": os.path.expanduser("~/torrent"),
+    "folder": os.path.expanduser("~/folder"),
+}
+
+file_types: Dict[str, Set[str]] = {
+    "document": {
+        ".doc",
+        ".docx",
+        ".ppt",
+        ".pptx",
+        ".xls",
+        ".xlsx",
+        ".odt",
+        ".rtf",
+        ".pages",
+        ".tex",
+        ".epub",
+        ".mobi",
+        ".csv",
+        ".ics",
+        ".dat",
+    },
+    "picture": {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".svg",
+        ".webp",
+        ".heic",
+        ".ico",
+        ".raw",
+        ".jfif",
+        ".nef",
+        ".arw",
+        ".dng",
+        ".cr2",
+        ".orf",
+        ".sr2",
+    },
+    "pdf": {".pdf"},
+    "text": {
+        ".txt",
+        ".md",
+        ".csv",
+        ".log",
+        ".rtf",
+        ".tex",
+        ".json",
+        ".yaml",
+        ".ini",
+        ".properties",
+    },
+    "torrent": {".torrent"},
+    "music": {
+        ".mp3",
+        ".wav",
+        ".flac",
+        ".aac",
+        ".ogg",
+        ".m4a",
+        ".wma",
+        ".aiff",
+        ".opus",
+        ".alac",
+        ".mid",
+        ".midi",
+        ".ra",
+        ".mka",
+        ".ape",
+    },
+    "video": {
+        ".mp4",
+        ".mkv",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".flv",
+        ".webm",
+        ".mpeg",
+        ".mpg",
+        ".m4v",
+        ".3gp",
+        ".m2ts",
+        ".mts",
+        ".vob",
+    },
+    "edit": {
+        ".psd",
+        ".ai",
+        ".skp",
+        ".fig",
+        ".xd",
+        ".svg",
+        ".dxf",
+        ".xcf",
+        ".c4d",
+        ".indd",
+        ".afdesign",
+        ".kra",
+        ".blend",
+        ".fbx",
+        ".3ds",
+        ".obj",
+        ".eps",
+    },
+    "archive": {
+        ".zip",
+        ".rar",
+        ".7z",
+        ".tar",
+        ".gz",
+        ".bz2",
+        ".xz",
+        ".cab",
+        ".iso",
+        ".dmg",
+        ".tgz",
+        ".ace",
+        ".arj",
+        ".lz",
+        ".z",
+        ".pak",
+        ".tar.gz",
+        ".tar.bz2",
+    },
+    "code": {
+        ".py",
+        ".js",
+        ".ts",
+        ".java",
+        ".cpp",
+        ".c",
+        ".html",
+        ".css",
+        ".php",
+        ".rb",
+        ".go",
+        ".swift",
+        ".rs",
+        ".kt",
+        ".lua",
+        ".sh",
+        ".pl",
+        ".json",
+        ".yaml",
+        ".xml",
+        ".sql",
+        ".vhdl",
+        ".verilog",
+        ".m",
+        ".f90",
+        ".for",
+        ".r",
+        ".d",
+        ".scala",
+        ".as",
+        ".coffee",
+        ".bat",
+        ".ps1",
+        ".clj",
+        ".cs",
+        ".dart",
+        ".erl",
+        ".fs",
+        ".hs",
+        ".lisp",
+        ".lsp",
+        ".pas",
+        ".tsx",
+        ".vb",
+        ".vbs",
+        ".wasm",
+        ".asm",
+        ".s",
+        ".jsx",
+        ".vue",
+        ".php3",
+        ".php4",
+        ".php5",
+        ".php7",
+        ".php8",
+        ".phps",
+        ".phtml",
+        ".ctp",
+        ".twig",
+        ".tpl",
+        ".latte",
+        ".yml",
+        ".lock",
+        ".markdown",
+        ".rst",
+        ".rmd",
+        ".rmarkdown",
+        ".adoc",
+        ".asciidoc",
+        ".org",
+        ".conf",
+        ".cfg",
+    },
+    "hidden": {
+        ".env",
+        ".env.example",
+        ".env.local",
+        ".env.development",
+        ".env.test",
+        ".env.production",
+        ".env.staging",
+        ".env.ci",
+        ".env.netlify",
+        ".babelrc",
+        ".eslintrc",
+        ".prettierrc",
+        ".stylelintrc",
+        ".commitlintrc",
+        ".editorconfig",
+        ".gitignore",
+        ".gitattributes",
+        ".gitmodules",
+        ".gitkeep",
+        ".npmignore",
+        ".dockerignore",
+        ".htaccess",
+        ".webmanifest",
+        ".webapp",
+        ".webappmanifest",
+        ".appcache",
+        ".manifest",
+        ".browserconfig",
+        ".htpasswd",
+        ".htdigest",
+    },
+    "other": {
+        ".os",
+        ".file",
+        ".backup",
+        ".temp",
+        ".config",
+        ".dat",
+        ".bin",
+        ".dll",
+        ".exe",
+        ".swp",
+        ".sublime-project",
+        ".sublime-workspace",
+        ".safariextz",
+        ".app",
+        ".iso",
+        ".toast",
+        ".vcd",
+        ".dmg",
+        ".img",
+        ".ccd",
+        ".cue",
+        ".nrg",
+        ".mdf",
+        ".bin",
+        ".dmgpart",
+        ".vhd",
+        ".vmdk",
+        ".vdi",
+        ".hdd",
+        ".qed",
+        ".qcow",
+        ".qcow2",
+        ".vhdx",
+        ".key",
+        ".pem",
+        ".csr",
+        ".crt",
+        ".cer",
+        ".der",
+        ".pfx",
+        ".p12",
+        ".p7b",
+        ".p7r",
+        ".spc",
+        ".gpg",
+        ".asc",
+        ".sig",
+        ".md5",
+        ".sha1",
+        ".sha256",
+        ".sha512",
+        ".crdownload",
+        ".download",
+        ".part",
+        ".tmp",
+        ".temp",
+        ".bak",
+        ".old",
+        ".backup",
+        ".swp",
+    },
+}
+
+extension_to_category: Dict[str, str] = {
+    ext: category for category, extensions in file_types.items() for ext in extensions
+}
+
+errors_dir = os.path.expanduser("~/.errors")
+os.makedirs(errors_dir, exist_ok=True)
+
+log_filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log")
+log_path = os.path.join(errors_dir, log_filename)
+logging.basicConfig(
+    filename=log_path,
+    level=logging.ERROR,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+# Lock for thread-safe logging
+log_lock = Lock()
+
+
+@dataclass
+class FileItem:
+    name: str
+    path: str
+    is_directory: bool
+
+
+def ensure_directories_exist() -> None:
+    """Ensure all destination directories exist."""
+    for directory in destination_dirs.values():
+        os.makedirs(directory, exist_ok=True)
+
+
+def move_file(src_path: str, dest_dir: str) -> None:
+    """Move file to the destination directory."""
+    dest_path = os.path.join(dest_dir, os.path.basename(src_path))
+    try:
+        shutil.move(src_path, dest_path)
+    except (OSError, shutil.Error) as e:
+        with log_lock:
+            logging.error(f"Error moving file {src_path} to {dest_path}: {e}")
+
+
+def move_directory(src_path: str, dest_dir: str) -> None:
+    """Move directory and its contents to the destination directory."""
+    dest_path = os.path.join(dest_dir, os.path.basename(src_path))
+    try:
+        shutil.move(src_path, dest_path)
+    except (OSError, shutil.Error) as e:
+        with log_lock:
+            logging.error(f"Error moving directory {src_path} to {dest_path}: {e}")
+
+
+def delete_file(file_path: str) -> None:
+    """Delete a file."""
+    try:
+        os.remove(file_path)
+    except OSError as e:
+        with log_lock:
+            logging.error(f"Error deleting file {file_path}: {e}")
+
+
+def process_item(item: FileItem) -> None:
+    """Process each file or directory."""
+    if item.is_directory:
+        dest_dir = destination_dirs["folder"]
+        move_directory(item.path, dest_dir)
+        return
+
+    _, extension = os.path.splitext(item.name)
+    extension = extension.lower()
+
+    # Handle deletion for specific file extensions
+    if extension in file_types["hidden"]:
+        delete_file(item.path)
+        return
+
+    dest_dir = destination_dirs.get(
+        extension_to_category.get(extension, "other"), destination_dirs["other"]
+    )
+
+    if item.name.startswith("."):
+        dest_dir = destination_dirs["hidden"]
+
+    move_file(item.path, dest_dir)
+
+
+def process_chunk(chunk: List[FileItem]) -> None:
+    """Process a chunk of items using multithreading."""
+    with ThreadPoolExecutor() as thread_executor:
+        thread_executor.map(process_item, chunk)
+
+
+def main() -> None:
+    """Main function to organize files."""
+    ensure_directories_exist()
+
+    with os.scandir(source_dir) as entries:
+        items = [FileItem(entry.name, entry.path, entry.is_dir()) for entry in entries]
+
+    num_cores = cpu_count()
+
+    # Use ProcessPoolExecutor for parallel processing of items
+    with ProcessPoolExecutor(max_workers=num_cores) as process_executor:
+        chunk_size = len(items) // num_cores + 1
+        chunks = [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
+
+        futures = [process_executor.submit(process_chunk, chunk) for chunk in chunks]
+        for future in futures:
+            future.result()
+
+
+
+if __name__ == "__main__":
+    main()
