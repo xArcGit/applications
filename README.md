@@ -1,84 +1,88 @@
-<p align="center">
-  <img src="https://img.shields.io/github/stars/xArcGit/bash-scripts?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/forks/xArcGit/bash-scripts?style=social" alt="Forks">
-  <img src="https://img.shields.io/github/issues/xArcGit/bash-scripts" alt="Issues">
-  <img src="https://img.shields.io/github/license/xArcGit/bash-scripts" alt="License">
-</p>
+# **Scripts Repository**
 
-Welcome to the **Scripts Repository**! This repository is dedicated to collecting various scripts that automate tasks, simplify workflows, and serve as a learning resource for scripting enthusiasts.
+This repository is a growing collection of scripts aimed at automating tasks, simplifying workflows, and serving as a valuable resource for those learning scripting.
 
 ---
 
-## 🚀 Overview
+## 🚀 **Overview**
 
-This repository currently contains a single script, but it is designed to grow! Each script focuses on performing specific tasks efficiently. As we expand, more scripts will be added to help you automate tasks on Unix-based systems.
+The repository contains scripts that focus on improving productivity and streamlining processes on Unix-based systems. Currently, the repository includes scripts for various tasks such as managing YouTube Music, file sorting, and torrent downloading, with more to come!
 
-scripting is a powerful tool that can automate mundane tasks and significantly boost productivity, especially for developers and system administrators.
+Scripting is an excellent way to automate repetitive tasks, freeing up time and improving efficiency for developers and system administrators alike.
 
-## 💻 Getting Started
+---
 
-Follow these steps to start using the Bash scripts from this repository:
+## 💻 **Getting Started**
 
-1. **Clone the repository to your local machine:**
+To start using the scripts from this repository, follow these steps:
 
-```bash
-git clone https://github.com/xArcGit/scripts.git
-```
+1. **Clone the repository:**
 
-2. **Navigate to the directory of the script you want to use:**
+   ```bash
+   git clone https://github.com/xArcGit/scripts.git
+   ```
 
-```bash
-cd bash-scripts
-```
+2. **Navigate to the script folder:**
+
+   ```bash
+   cd scripts
+   ```
 
 3. **Make the script executable:**
 
-```bash
-chmod +x script-name
-```
+   ```bash
+   chmod +x script_name
+   ```
 
 4. **Run the script:**
 
-```bash
-./script-name
-```
+   ```bash
+   ./script_name
+   ```
 
 ---
 
-## 📂 Directory Structure
+## 📂 **Directory Structure**
 
 ```bash
 .
-├── Readme.md          # Overview and details of the repository
-├── Youtube Music      # Folder containing scripts related to YouTube Music
-│   ├── Readme.md      # Description of scripts in this folder
-│   └── youtube        # Main script for YouTube Music automation
-└── More scripts to be added soon!
+├── File Sort              # Folder containing a file sorting script
+│   ├── FileSort           # Main script for file sorting
+│   └── Readme.md          # Description of the File Sort script
+├── Images                 # Folder for image processing scripts
+│   ├── Image              # Main script for image management
+│   └── Readme.md          # Description of the Images folder
+├── Torrent Download       # Folder for torrent downloading script
+│   ├── Readme.md          # Description of the torrent download script
+│   └── TorrentDownload    # Main script for torrent downloading
+└── Youtube Music          # Folder containing YouTube Music-related scripts
+    ├── Readme.md          # Description of the YouTube Music folder
+    └── youtube            # Main script for YouTube Music automation
 ```
 
 ---
 
-## 🛠️ Contributing
+## 🛠️ **Contributing**
 
-We warmly welcome contributions! If you have any ideas for new scripts, improvements, or bug fixes, feel free to:
+We welcome contributions from the community! To contribute:
 
 1. **Fork this repository**
-2. **Create a new branch**
+2. **Create a new branch for your feature or fix**
 3. **Submit a pull request**
 
-Please make sure to follow the [Contribution Guidelines](CONTRIBUTING.md) if available.
+Please review the [Contribution Guidelines](CONTRIBUTING.md) before submitting.
 
 ---
 
-## 📝 License
+## 📝 **License**
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**. For details, refer to the [LICENSE](LICENSE) file.
 
 ---
 
-## 🤝 Support
+## 🤝 **Support**
 
-If you find this project helpful, please consider giving it a ⭐ star and share it with your friends. You can also [open an issue](https://github.com/xArcGit/bash-scripts/issues) for feedback or improvements.
+If you find these scripts useful, consider giving this repository a ⭐ star! Feel free to open an [issue](https://github.com/xArcGit/scripts/issues) if you encounter any problems or have suggestions for improvements.
 
 <p align="center">
   <img src="https://forthebadge.com/images/badges/built-with-love.svg" alt="Built with Love">
